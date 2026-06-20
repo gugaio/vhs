@@ -1,0 +1,35 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "VHS: clone HLS",
+        "type": "node",
+        "request": "launch",
+        "cwd": "${workspaceFolder}",
+        "runtimeExecutable": "node",
+        "runtimeArgs": ["--import", "tsx"],
+        "program": "${workspaceFolder}/src/cli.ts",
+        "args": [
+          "stream",
+          "clone",
+          "${input:hlsUrl}",
+          "--duration",
+          "60",
+          "--id",
+          "debug-hls"
+        ],
+        "console": "integratedTerminal",
+        "skipFiles": ["<node_internals>/**"],
+        "env": {
+          "VHS_DATA_DIR": "${workspaceFolder}/.vhs-data"
+        }
+      }
+    ],
+    "inputs": [
+      {
+        "id": "hlsUrl",
+        "type": "promptString",
+        "description": "URL do manifesto HLS (.m3u8)"
+      }
+    ]
+  }

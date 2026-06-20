@@ -1,0 +1,32 @@
+{
+  "name": "@gugaime/vhs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Video Harness System: deterministic tools for HLS and DASH",
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./core": "./dist/index.js"
+  },
+  "bin": {
+    "vhs": "./bin/vhs"
+  },
+  "files": ["bin", "dist"],
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "dev": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "commander": "^14.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^4.0.18"
+  }
+}
