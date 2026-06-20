@@ -1,5 +1,5 @@
 {
-  "name": "@gugaime/vhs",
+  "name": "@gugaio/vhs",
   "version": "0.1.0",
   "private": true,
   "description": "Video Harness System: deterministic tools for HLS and DASH",
