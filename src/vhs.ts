@@ -3,6 +3,8 @@ import { MediaInspector } from "./inspect.js";
 import { ManifestAudit } from "./manifest.js";
 import { ManifestDiff } from "./manifest-diff.js";
 import { StreamerService } from "./stream/service.js";
+import { HlsWatchService } from "./watch.js";
+import { PlaybackTriageService } from "./playback.js";
 
 export type VhsOptions = {
   /** Directory that contains local cloned origins. Default: ./.vhs-data */
@@ -18,6 +20,8 @@ export class Vhs {
   };
 
   readonly stream: StreamerService;
+  readonly watch = new HlsWatchService(this.inspect);
+  readonly playback = new PlaybackTriageService();
 
   constructor(options: VhsOptions = {}) {
     const dataDir = path.resolve(options.dataDir ?? process.env.VHS_DATA_DIR ?? ".vhs-data");

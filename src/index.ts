@@ -3,6 +3,13 @@ export { ManifestAudit } from "./manifest.js";
 export { ManifestDiff } from "./manifest-diff.js";
 export { createVhs, Vhs } from "./vhs.js";
 export type { VhsOptions } from "./vhs.js";
+export { HlsWatchService } from "./watch.js";
+export { analyzeSnapshotTransition, toHlsSnapshot } from "./watch-rules.js";
+export type { HlsSnapshot, HlsWatchEvent, HlsWatchInput, HlsWatchStatus } from "./watch.js";
+export { PlaybackTriageService } from "./playback.js";
+export { deriveHlsJsIssues, parseHlsJsLogText } from "./hlsjs.js";
+export type { PlaybackEngine, PlaybackEvent, PlaybackInput, PlaybackIssue, PlaybackReport } from "./playback.js";
+export type * from "./stream/model.js";
 export { StreamerService } from "./stream/service.js";
 export { diagnoseStreamerClone } from "./stream/diagnostics.js";
 export type {

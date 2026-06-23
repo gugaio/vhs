@@ -8,9 +8,18 @@ function print(value: unknown, json: boolean): void {
     console.log(JSON.stringify(value, null, 2));
     return;
   }
-  const report = value as { ok: boolean; summary: string };
-  console.log(`ok=${report.ok}`);
-  console.log(`summary=${report.summary}`);
+  if (isReport(value)) {
+    console.log(`ok=${value.ok}`);
+    console.log(`summary=${value.summary}`);
+    return;
+  }
+  console.log(JSON.stringify(value, null, 2));
+}
+
+function isReport(value: unknown): value is { ok: boolean; summary: string } {
+  return typeof value === "object" && value !== null
+    && "ok" in value && typeof value.ok === "boolean"
+    && "summary" in value && typeof value.summary === "string";
 }
 
 function optionalNumber(value: string | undefined, flag: string): number | undefined {
@@ -77,9 +86,8 @@ async function main(): Promise<void> {
   const program = new Command().name("vhs").description("Video Harness System");
   program.option("--data-dir <path>", "directory for cloned stream origins");
   const getVhs = () => createVhs({ dataDir: program.opts<{ dataDir?: string }>().dataDir });
-  const manifest = program.command("manifest").description("HLS manifest tools");
 
-  manifest
+  program
     .command("audit <url>")
     .option("--max-segments <n>")
     .option("--timeout-ms <ms>")
@@ -99,9 +107,27 @@ async function main(): Promise<void> {
       if (!report.ok) process.exitCode = 2;
     });
 
-  const stream = program.command("stream").description("Local HLS/DASH origin tools");
+  program
+    .command("inspect <url>")
+    .option("--format <format>", "auto, hls, or dash", "auto")
+    .option("--max-segments <n>")
+    .option("--timeout-ms <ms>")
+    .option("--json")
+    .action(async (url: string, options: Record<string, string | boolean | undefined>) => {
+      const vhs = await getVhs();
+      const params = {
+        url,
+        maxSegments: optionalNumber(options.maxSegments as string | undefined, "--max-segments"),
+        timeoutMs: optionalNumber(options.timeoutMs as string | undefined, "--timeout-ms"),
+      };
+      const result = streamFormat(url, options.format as string | undefined) === "dash"
+        ? await vhs.inspect.inspectDash(params)
+        : await vhs.inspect.inspectHls(params);
+      print(result, options.json === true);
+      if (!result.ok) process.exitCode = 2;
+    });
 
-  stream
+  program
     .command("clone <url>")
     .option("--format <format>", "auto, hls, or dash", "auto")
     .option("--duration <seconds>", "target duration", "60")
@@ -142,29 +168,29 @@ async function main(): Promise<void> {
       else console.log(`origin=${result.id}\nmanifest=${result.manifestPath}\nsegments=${result.segmentCount}`);
     });
 
-  stream.command("list").option("--json").action(async (options: { json?: boolean }) => {
+  program.command("origins").option("--json").action(async (options: { json?: boolean }) => {
     const origins = await (await getVhs()).stream.listOrigins();
     if (options.json) return print(origins, true);
     console.log(origins.map((origin) => `${origin.id} ${origin.protocol ?? "hls"} ${origin.segmentCount} segments`).join("\n"));
   });
 
-  stream.command("inspect <origin-id>").option("--json").action(async (originId: string, options: { json?: boolean }) => {
+  program.command("origin <origin-id>").option("--json").action(async (originId: string, options: { json?: boolean }) => {
     print(await (await getVhs()).stream.inspectOrigin(originId), options.json === true);
   });
 
-  stream.command("probe <origin-id>").option("--timeout-ms <ms>").option("--json").action(async (originId: string, options: Record<string, string | boolean | undefined>) => {
+  program.command("probe <origin-id>").option("--timeout-ms <ms>").option("--json").action(async (originId: string, options: Record<string, string | boolean | undefined>) => {
     const report = await (await getVhs()).stream.probeOrigin(originId, { timeoutMs: optionalNumber(options.timeoutMs as string | undefined, "--timeout-ms") });
     print(report, options.json === true);
     if (!report.ok) process.exitCode = 2;
   });
 
-  stream.command("analyze <origin-id>").option("--full").option("--json").action(async (originId: string, options: { full?: boolean; json?: boolean }) => {
+  program.command("analyze <origin-id>").option("--full").option("--json").action(async (originId: string, options: { full?: boolean; json?: boolean }) => {
     const report = await (await getVhs()).stream.analyzeOrigin(originId, { full: options.full === true });
     print(report, options.json === true);
     if (!report.ok) process.exitCode = 2;
   });
 
-  stream
+  program
     .command("mutate <origin-id>")
     .requiredOption("--fault <type>", "discontinuity or segment-swap")
     .requiredOption("--at-segment <n>")
@@ -195,17 +221,17 @@ async function main(): Promise<void> {
       else console.log(`origin=${result.origin.id}\nfault=${result.fault.type}`);
     });
 
-  stream.command("remove <origin-id>").requiredOption("--yes", "confirm origin removal").option("--json").action(async (originId: string, options: { json?: boolean }) => {
+  program.command("remove <origin-id>").requiredOption("--yes", "confirm origin removal").option("--json").action(async (originId: string, options: { json?: boolean }) => {
     print(await (await getVhs()).stream.removeOrigin(originId), options.json === true);
   });
 
-  stream.command("serve <origin-id>").option("--host <host>", "bind host", "127.0.0.1").option("--port <n>", "bind port", "0").option("--json").action(async (originId: string, options: Record<string, string | boolean | undefined>) => {
+  program.command("serve <origin-id>").option("--host <host>", "bind host", "127.0.0.1").option("--port <n>", "bind port", "0").option("--json").action(async (originId: string, options: Record<string, string | boolean | undefined>) => {
     const handle = await (await getVhs()).stream.serveOrigin(originId, { host: options.host as string, port: optionalNumber(options.port as string | undefined, "--port") });
     print(handle, options.json === true);
     await waitForStop(handle.close);
   });
 
-  stream.command("live <origin-id>").option("--host <host>", "bind host", "127.0.0.1").option("--port <n>", "bind port", "0").option("--window-size <n>", "segments per live window", "5").option("--json").action(async (originId: string, options: Record<string, string | boolean | undefined>) => {
+  program.command("live <origin-id>").option("--host <host>", "bind host", "127.0.0.1").option("--port <n>", "bind port", "0").option("--window-size <n>", "segments per live window", "5").option("--json").action(async (originId: string, options: Record<string, string | boolean | undefined>) => {
     const handle = await (await getVhs()).stream.serveLiveOrigin(originId, {
       host: options.host as string,
       port: optionalNumber(options.port as string | undefined, "--port"),
@@ -215,7 +241,7 @@ async function main(): Promise<void> {
     await waitForStop(handle.close);
   });
 
-  manifest
+  program
     .command("diff <left-url> <right-url>")
     .option("--max-segments <n>")
     .option("--timeout-ms <ms>")
