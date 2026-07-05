@@ -100,7 +100,7 @@ async function main(): Promise<void> {
   });
 
   program.command("origin <origin-id>").option("--json").action(async (originId: string, options: { json?: boolean }) => {
-    print(await (await getVhs()).stream.inspectOrigin(originId), options.json === true);
+    print(await (await getVhs()).stream.loadOrigin(originId), options.json === true);
   });
 
   program.command("probe <origin-id>").option("--timeout-ms <ms>").option("--json").action(async (originId: string, raw: RawCliOptions) => {

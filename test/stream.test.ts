@@ -762,7 +762,7 @@ describe("StreamerService", () => {
       allVariants: false,
     });
 
-    const inspected = await service.inspectOrigin("managed-origin");
+    const inspected = await service.loadOrigin("managed-origin");
     expect(inspected.id).toBe("managed-origin");
     expect(inspected.rootDir).toBe(result.rootDir);
     expect(inspected.variants).toHaveLength(1);
@@ -1736,7 +1736,7 @@ describe("StreamerService", () => {
     expect(mpd).toContain('contentType="audio"');
     expect(mpd).toContain('audio/000-audio-a1-128000/init/00000-init-a1.mp4');
 
-    const origin = await service.inspectOrigin(result.id);
+    const origin = await service.loadOrigin(result.id);
     expect(origin.protocol).toBe("dash");
     const report = await service.analyzeOrigin(result.id, { full: true });
     expect(report.sampledSegments).toBe(4);
