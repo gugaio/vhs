@@ -295,6 +295,132 @@ describe("StreamerService", () => {
     ]);
   });
 
+  it("analisa video e audio separadamente em variant HLS muxada", async () => {
+    const root = await makeTempRoot();
+    const selectors: string[] = [];
+    const service = new StreamerService(
+      {
+        inspectHls: async ({ url }) => {
+          if (url === "https://example.com/master.m3u8") {
+            return makeInspectResult({
+              variants: [{
+                uri: "media.m3u8",
+                url: "https://example.com/media.m3u8",
+                bandwidth: 1_000_000,
+                resolution: "640x360",
+                codecs: "avc1.4d401e,mp4a.40.2",
+              }],
+            });
+          }
+          return makeInspectResult({
+            url,
+            finalUrl: url,
+            playlistType: "media",
+            targetDuration: 4,
+            segments: [{
+              uri: "seg-0.ts",
+              url: "https://cdn.example.com/seg-0.ts",
+              duration: 4,
+            }],
+          });
+        },
+        probe: async ({ input, streamSelector }) => {
+          const selector = streamSelector ?? "v:0";
+          selectors.push(selector);
+          return {
+            ok: true,
+            input,
+            timeoutMs: 5000,
+            format: { duration: "4.000" },
+            streams: [
+              { codec_type: "video", codec_name: "h264" },
+              { codec_type: "audio", codec_name: "aac", sample_rate: "48000", channels: 2 },
+            ],
+            timeline: {
+              streamSelector: selector,
+              sampleKind: selector.startsWith("v:") ? "frames" : "packets",
+              sampleCount: selector.startsWith("v:") ? 96 : 188,
+              firstPtsTime: 0,
+              lastPtsTime: 3.96,
+              lastSampleDurationTime: 0.04,
+              keyframeCount: selector.startsWith("v:") ? 1 : undefined,
+              startsWithKeyframe: selector.startsWith("v:") ? true : undefined,
+              maxKeyframeGapSeconds: selector.startsWith("v:") ? 1 : undefined,
+            },
+            errors: [],
+          };
+        },
+      },
+      root,
+      async () => new Response(new Uint8Array([1, 2, 3])),
+    );
+    await service.init();
+
+    const result = await service.cloneHls({
+      url: "https://example.com/master.m3u8",
+      originId: "muxed-origin",
+    });
+    const report = await service.analyzeOrigin(result.id, { full: true });
+
+    expect(selectors).toEqual(["v:0", "a:0"]);
+    expect(report.sampledMediaPlaylists).toBe(1);
+    expect(report.entries.map((entry) => [entry.type, entry.streamSelector, entry.codecName, entry.sampleRate])).toEqual([
+      ["VIDEO", "v:0", "h264", undefined],
+      ["AUDIO", "a:0", "aac", 48000],
+    ]);
+    expect(report.media.map((entry) => [entry.type, entry.streamSelector, entry.sampledSegments])).toEqual([
+      ["VIDEO", "v:0", 1],
+      ["AUDIO", "a:0", 1],
+    ]);
+  });
+
+  it("retorna entrada com erro quando ffprobe falha durante analyze", async () => {
+    const root = await makeTempRoot();
+    const service = new StreamerService(
+      {
+        inspectHls: async ({ url }) => makeInspectResult({
+          url,
+          finalUrl: url,
+          playlistType: "media",
+          targetDuration: 4,
+          segments: [{
+            uri: "seg-0.ts",
+            url: "https://cdn.example.com/seg-0.ts",
+            duration: 4,
+          }],
+        }),
+        probe: async () => {
+          throw new Error("ffprobe failed for fixture");
+        },
+      },
+      root,
+      async () => new Response(new Uint8Array([1, 2, 3])),
+    );
+    await service.init();
+
+    const result = await service.cloneHls({
+      url: "https://example.com/media.m3u8",
+      originId: "probe-error-origin",
+    });
+    const report = await service.analyzeOrigin(result.id, {
+      full: true,
+      startSegment: 0,
+      segmentCount: 1,
+    });
+
+    expect(report.ok).toBe(false);
+    expect(report.failedSegments).toBe(1);
+    expect(report.entries[0]).toMatchObject({
+      kind: "variant",
+      mediaIndex: 0,
+      segmentIndex: 0,
+      type: "VIDEO",
+      streamSelector: "v:0",
+      ok: false,
+      errors: ["ffprobe failed for fixture"],
+    });
+  });
+
   it("clona todas as variants e gera uma master local quando allVariants esta ativo", async () => {
     const root = await makeTempRoot();
     const fetchedUrls: string[] = [];
@@ -1214,7 +1340,7 @@ describe("StreamerService", () => {
       declaredDurationSeconds: 4,
       actualDurationSeconds: 4.004,
       durationDeltaSeconds: expect.closeTo(0.004, 3),
-      streamCount: 2,
+      streamCount: 1,
       packetCount: 96,
       firstPtsTime: 10,
       lastPtsTime: 13.962,
