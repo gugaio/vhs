@@ -1,4 +1,4 @@
-# VHS — Video Harness System
+# VHS — Video Harness Suite
 
 Ferramentas determinísticas para inspecionar, auditar e comparar streams HLS/DASH.
 

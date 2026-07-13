@@ -51,26 +51,8 @@ export class StreamerService {
     return this.originStore.list();
   }
 
-  async inspectOrigin(originId: string): Promise<StreamerCloneResult> {
+  async loadOrigin(originId: string): Promise<StreamerCloneResult> {
     return this.originStore.load(originId);
-  }
-
-  async mutateOrigin(input: StreamerMutateInput): Promise<StreamerMutateResult> {
-    return mutateOrigin(this.originStore, input);
-  }
-
-  async probeOrigin(
-    originId: string,
-    options: StreamerProbeOptions = {},
-  ): Promise<StreamerOriginProbeReport> {
-    return probeOrigin(this.originStore, this.inspect, originId, options);
-  }
-
-  async analyzeOrigin(
-    originId: string,
-    options: StreamerAnalyzeOptions = {},
-  ): Promise<StreamerOriginAnalysisReport> {
-    return analyzeOrigin(this.originStore, this.inspect, originId, options);
   }
 
   async removeOrigin(originId: string): Promise<StreamerRemoveResult> {
@@ -110,4 +92,23 @@ export class StreamerService {
   ): Promise<StreamerLiveServeHandle> {
     return serveLiveOrigin(this.originStore, originId, options);
   }
+
+  async mutateOrigin(input: StreamerMutateInput): Promise<StreamerMutateResult> {
+    return mutateOrigin(this.originStore, input);
+  }
+
+  async analyzeOrigin(
+    originId: string,
+    options: StreamerAnalyzeOptions = {},
+  ): Promise<StreamerOriginAnalysisReport> {
+    return analyzeOrigin(this.originStore, this.inspect, originId, options);
+  }
+
+  async probeOrigin(
+    originId: string,
+    options: StreamerProbeOptions = {},
+  ): Promise<StreamerOriginProbeReport> {
+    return probeOrigin(this.originStore, this.inspect, originId, options);
+  }
+  
 }
